@@ -1,4 +1,4 @@
-const submissionEmail = "";
+const submissionEmail = "vermontstrength@gmail.com";
 
 const requesters = [
   { key: "Jim", hint: "Jim" },
