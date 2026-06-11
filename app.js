@@ -1,7 +1,7 @@
 const submissionEmail = "vermontstrength@gmail.com";
 const supabaseConfig = {
-  url: "",
-  anonKey: "",
+  url: "https://xbqhtcqvbcndikuqsesz.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhicWh0Y3F2YmNuZGlrdXFzZXN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzExOTEsImV4cCI6MjA5NjI0NzE5MX0.nmXeAvGQMfsamFDapBzO0JJiMXCqov7LNEyuUlnSJA8",
   table: "help_requests",
   pollMs: 15000
 };
