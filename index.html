@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Team Smith HQ Help Requests</title>
+    <link rel="stylesheet" href="styles.css?v=8">
+  </head>
+  <script>
+    document.documentElement.classList.add("js");
+  </script>
+  <body>
+    <main class="app-shell">
+      <section class="request-panel" aria-label="Create a household help request">
+        <div class="brand-row">
+          <div>
+            <p class="eyebrow">Team Smith HQ</p>
+            <h1>Help Requests</h1>
+          </div>
+          <button class="quiet-button" id="newButton" type="button">New</button>
+        </div>
+
+        <div class="request-visual" aria-hidden="true">
+          <span class="paper paper-one"></span>
+          <span class="paper paper-two"></span>
+          <span class="paper paper-three"></span>
+          <span class="status-dot"></span>
+        </div>
+
+        <form class="work-order-form" id="workOrderForm">
+          <div class="field-group">
+            <label class="section-label" for="requester">Who is asking?</label>
+            <div class="segmented-row" id="requesterButtons" role="radiogroup" aria-label="Who is asking?"></div>
+            <input id="requester" name="requester" type="hidden" value="Jim">
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span class="section-label">What kind of thing?</span>
+              <select id="category" name="category">
+                <option>Around the house</option>
+                <option>Tech help</option>
+                <option>Errand</option>
+                <option>Money or paperwork</option>
+                <option>Travel plans</option>
+                <option>Family logistics</option>
+                <option>Other</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="section-label">When would be helpful?</span>
+              <select id="timeline" name="timeline">
+                <option>This week</option>
+                <option>Today</option>
+                <option>Next few weeks</option>
+                <option>Flexible</option>
+                <option>Specific date</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-group">
+            <div class="section-label">Priority</div>
+            <div class="segmented-row" id="priorityButtons" role="radiogroup" aria-label="Priority"></div>
+            <input id="priority" name="priority" type="hidden" value="Normal">
+          </div>
+
+          <label class="field">
+            <span class="section-label">Short name for this</span>
+            <input id="title" name="title" type="text" autocomplete="off" placeholder="Example: Garage keypad is acting up" required>
+          </label>
+
+          <label class="field">
+            <span class="section-label">Tell me what is going on</span>
+            <textarea id="details" name="details" rows="5" placeholder="Add what you need, what you have already tried, links, notes, or photos you can send later." required></textarea>
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span class="section-label">Where is this?</span>
+              <input id="location" name="location" type="text" autocomplete="off" placeholder="Kitchen, laptop, garage, vendor, etc.">
+            </label>
+
+            <label class="field">
+              <span class="section-label">Money note</span>
+              <input id="budget" name="budget" type="text" autocomplete="off" placeholder="No spend, ask first, or rough limit">
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="section-label">Done means</span>
+            <input id="success" name="success" type="text" autocomplete="off" placeholder="What should be true when this is handled?">
+          </label>
+
+          <button class="primary-button" type="submit">Send this to Justin</button>
+          <p class="form-status" id="formStatus" role="status"></p>
+        </form>
+      </section>
+
+      <section class="preview-panel" aria-live="polite">
+        <div class="preview-header">
+          <div>
+            <p class="eyebrow" id="orderMeta">Draft request</p>
+            <h2 id="orderTitle">Ready for the next Team Smith project</h2>
+          </div>
+          <div class="action-row">
+            <button class="icon-button" id="copyButton" type="button" aria-label="Copy request" title="Copy request">
+              <span aria-hidden="true">Copy</span>
+            </button>
+            <a class="icon-button" id="emailButton" href="#" aria-label="Email request" title="Email request">
+              <span aria-hidden="true">Email</span>
+            </a>
+            <button class="icon-button" id="printButton" type="button" aria-label="Print request" title="Print request">
+              <span aria-hidden="true">Print</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <div class="order-card" id="orderCard"></div>
+
+        <div class="copy-panel" id="copyPanel" hidden>
+          <textarea id="copyTextArea" readonly aria-label="Request text"></textarea>
+        </div>
+      </section>
+
+      <aside class="saved-panel" aria-label="Saved help requests">
+        <div class="saved-header">
+          <div>
+            <p class="eyebrow">Saved</p>
+            <h2>Recent requests</h2>
+          </div>
+          <button class="quiet-button" id="clearSavedButton" type="button">Clear</button>
+        </div>
+        <div class="saved-list" id="savedList"></div>
+      </aside>
+    </main>
+
+    <script src="app.js?v=8"></script>
+  </body>
+</html>
