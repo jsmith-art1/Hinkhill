@@ -1,4 +1,10 @@
 const submissionEmail = "vermontstrength@gmail.com";
+const supabaseConfig = {
+  url: "",
+  anonKey: "",
+  table: "help_requests",
+  pollMs: 15000
+};
 
 const requesters = [
   { key: "Jim", hint: "Jim" },
@@ -29,7 +35,12 @@ const state = {
   requester: "Jim",
   priority: "Normal",
   currentOrder: blankOrder,
-  saved: JSON.parse(localStorage.getItem("teamSmithWorkOrders") || "[]")
+  saved: JSON.parse(localStorage.getItem("teamSmithWorkOrders") || "[]"),
+  remoteOrders: [],
+  usingRemoteDashboard: false,
+  seenRemoteIds: new Set(JSON.parse(localStorage.getItem("teamSmithSeenRemoteIds") || "[]")),
+  dashboardInitialized: false,
+  dashboardTimer: null
 };
 
 const form = document.querySelector("#workOrderForm");
@@ -50,6 +61,9 @@ const copyButton = document.querySelector("#copyButton");
 const emailButton = document.querySelector("#emailButton");
 const printButton = document.querySelector("#printButton");
 const clearSavedButton = document.querySelector("#clearSavedButton");
+const refreshDashboardButton = document.querySelector("#refreshDashboardButton");
+const dashboardStatus = document.querySelector("#dashboardStatus");
+const dashboardAlert = document.querySelector("#dashboardAlert");
 
 function escapeHtml(value) {
   return String(value)
@@ -68,6 +82,10 @@ function formattedDate(date = new Date()) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function isSupabaseConfigured() {
+  return supabaseConfig.url.startsWith("https://") && supabaseConfig.anonKey.length > 20;
 }
 
 function createOrderId(date = new Date()) {
@@ -98,8 +116,91 @@ function createOrder() {
     location: fieldValue("location", "Not specified"),
     budget: fieldValue("budget", "Not specified"),
     success: fieldValue("success", "Handled and confirmed."),
-    createdAt: formattedDate(now)
+    createdAt: formattedDate(now),
+    createdIso: now.toISOString()
   };
+}
+
+function supabaseHeaders(extra = {}) {
+  return {
+    apikey: supabaseConfig.anonKey,
+    Authorization: `Bearer ${supabaseConfig.anonKey}`,
+    ...extra
+  };
+}
+
+function supabaseEndpoint(query = "") {
+  return `${supabaseConfig.url.replace(/\/$/, "")}/rest/v1/${supabaseConfig.table}${query}`;
+}
+
+function orderToSupabaseRow(order) {
+  return {
+    order_id: order.id,
+    requester: order.requester,
+    category: order.category,
+    priority: order.priority,
+    timeline: order.timeline,
+    title: order.title,
+    details: order.details,
+    location: order.location,
+    budget: order.budget,
+    success: order.success,
+    created_label: order.createdAt,
+    status: "new"
+  };
+}
+
+function rowToOrder(row) {
+  return {
+    id: row.order_id || row.id,
+    requester: row.requester || "Team Smith",
+    category: row.category || "Other",
+    priority: row.priority || "Normal",
+    timeline: row.timeline || "Flexible",
+    title: row.title || "Untitled family request",
+    details: row.details || "No details provided yet.",
+    location: row.location || "Not specified",
+    budget: row.budget || "Not specified",
+    success: row.success || "Handled and confirmed.",
+    createdAt: row.created_label || (row.created_at ? formattedDate(new Date(row.created_at)) : "Not submitted yet"),
+    createdIso: row.created_at || row.inserted_at || ""
+  };
+}
+
+async function insertSupabaseOrder(order) {
+  if (!isSupabaseConfigured()) return null;
+
+  const response = await fetch(supabaseEndpoint(), {
+    method: "POST",
+    headers: supabaseHeaders({
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    }),
+    body: JSON.stringify(orderToSupabaseRow(order))
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase insert failed: ${response.status}`);
+  }
+
+  const rows = await response.json();
+  return rows[0] ? rowToOrder(rows[0]) : order;
+}
+
+async function fetchSupabaseOrders() {
+  if (!isSupabaseConfigured()) return [];
+
+  const query = "?select=*&order=created_at.desc&limit=12";
+  const response = await fetch(supabaseEndpoint(query), {
+    headers: supabaseHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase fetch failed: ${response.status}`);
+  }
+
+  const rows = await response.json();
+  return rows.map(rowToOrder);
 }
 
 function plainTextOrder(order) {
@@ -135,6 +236,20 @@ function openNotificationDraft(order) {
   window.setTimeout(() => {
     window.location.href = mailtoHref(order);
   }, 150);
+}
+
+function persistSeenRemoteIds() {
+  localStorage.setItem("teamSmithSeenRemoteIds", JSON.stringify([...state.seenRemoteIds].slice(0, 50)));
+}
+
+function showDashboardAlert(message) {
+  dashboardAlert.textContent = message;
+  dashboardAlert.hidden = false;
+}
+
+function clearDashboardAlert() {
+  dashboardAlert.hidden = true;
+  dashboardAlert.textContent = "";
 }
 
 function renderRadioButtons(container, items, selected, dataName) {
@@ -209,12 +324,16 @@ function renderOrder(order) {
 }
 
 function renderSaved() {
-  if (!state.saved.length) {
-    savedList.innerHTML = '<p class="empty-state">Requests you create will stay here on this device.</p>';
+  const orders = state.usingRemoteDashboard ? state.remoteOrders : state.saved;
+
+  if (!orders.length) {
+    savedList.innerHTML = state.usingRemoteDashboard
+      ? '<p class="empty-state">No Supabase requests yet. New requests will appear here.</p>'
+      : '<p class="empty-state">Requests will show up here for Justin.</p>';
     return;
   }
 
-  savedList.innerHTML = state.saved
+  savedList.innerHTML = orders
     .map((order) => `
       <article class="saved-item">
         <button type="button" data-saved-id="${escapeHtml(order.id)}">
@@ -225,6 +344,45 @@ function renderSaved() {
       </article>
     `)
     .join("");
+}
+
+function renderDashboardStatus(message) {
+  dashboardStatus.textContent = message;
+}
+
+async function refreshDashboard(options = {}) {
+  if (!isSupabaseConfigured()) {
+    state.remoteOrders = [];
+    state.usingRemoteDashboard = false;
+    renderDashboardStatus("Local mode: add your Supabase URL and anon key to turn on dashboard alerts.");
+    renderSaved();
+    return;
+  }
+
+  try {
+    const orders = await fetchSupabaseOrders();
+    const newOrders = orders.filter((order) => !state.seenRemoteIds.has(order.id));
+    state.remoteOrders = orders;
+    state.usingRemoteDashboard = true;
+    renderSaved();
+    renderDashboardStatus(`Synced with Supabase. Showing ${orders.length} latest request${orders.length === 1 ? "" : "s"}.`);
+
+    if (options.announceOrder) {
+      showDashboardAlert(`New request from ${options.announceOrder.requester}: ${options.announceOrder.title}`);
+    } else if (state.dashboardInitialized && newOrders.length) {
+      showDashboardAlert(`New request from ${newOrders[0].requester}: ${newOrders[0].title}`);
+    } else if (!orders.length) {
+      clearDashboardAlert();
+    }
+
+    orders.forEach((order) => state.seenRemoteIds.add(order.id));
+    persistSeenRemoteIds();
+    state.dashboardInitialized = true;
+  } catch (error) {
+    state.usingRemoteDashboard = false;
+    renderDashboardStatus("Could not reach Supabase. Local requests are still saved on this device.");
+    renderSaved();
+  }
 }
 
 function persistSaved() {
@@ -285,14 +443,33 @@ priorityButtons.addEventListener("click", (event) => {
   renderControls();
 });
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!form.reportValidity()) return;
   const order = createOrder();
   renderOrder(order);
   saveOrder(order);
-  formStatus.textContent = `${order.id} saved. Opening an email draft for Justin.`;
-  openNotificationDraft(order);
+  formStatus.textContent = `${order.id} saved locally.`;
+
+  if (!isSupabaseConfigured()) {
+    formStatus.textContent = `${order.id} saved locally. Opening an email draft for Justin.`;
+    openNotificationDraft(order);
+    return;
+  }
+
+  try {
+    formStatus.textContent = `${order.id} saved. Syncing to Justin's dashboard...`;
+    const syncedOrder = await insertSupabaseOrder(order);
+    if (syncedOrder) {
+      state.seenRemoteIds.add(syncedOrder.id);
+      persistSeenRemoteIds();
+      formStatus.textContent = `${order.id} is on Justin's dashboard.`;
+      await refreshDashboard({ announceOrder: syncedOrder });
+    }
+  } catch (error) {
+    formStatus.textContent = `${order.id} saved locally. Supabase did not sync, so opening an email draft.`;
+    openNotificationDraft(order);
+  }
 });
 
 newButton.addEventListener("click", resetForm);
@@ -330,7 +507,7 @@ printButton.addEventListener("click", () => {
 savedList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-saved-id]");
   if (!button) return;
-  const order = state.saved.find((item) => item.id === button.dataset.savedId);
+  const order = [...state.remoteOrders, ...state.saved].find((item) => item.id === button.dataset.savedId);
   if (!order) return;
   state.requester = order.requester;
   state.priority = order.priority;
@@ -345,6 +522,15 @@ clearSavedButton.addEventListener("click", () => {
   renderSaved();
 });
 
+refreshDashboardButton.addEventListener("click", () => {
+  refreshDashboard();
+});
+
 renderControls();
 renderOrder(blankOrder);
 renderSaved();
+refreshDashboard();
+
+if (isSupabaseConfigured()) {
+  state.dashboardTimer = window.setInterval(refreshDashboard, supabaseConfig.pollMs);
+}

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Team Smith HQ Help Requests</title>
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=9">
   </head>
   <script>
     document.documentElement.classList.add("js");
@@ -126,18 +126,21 @@
         </div>
       </section>
 
-      <aside class="saved-panel" aria-label="Saved help requests">
+      <aside class="saved-panel" aria-label="Justin dashboard">
         <div class="saved-header">
           <div>
-            <p class="eyebrow">Saved</p>
-            <h2>Recent requests</h2>
+            <p class="eyebrow">Justin dashboard</p>
+            <h2>Request alerts</h2>
           </div>
-          <button class="quiet-button" id="clearSavedButton" type="button">Clear</button>
+          <button class="quiet-button" id="refreshDashboardButton" type="button">Refresh</button>
         </div>
+        <div class="dashboard-alert" id="dashboardAlert" hidden></div>
+        <p class="dashboard-status" id="dashboardStatus">Checking request sync...</p>
         <div class="saved-list" id="savedList"></div>
+        <button class="quiet-button clear-local-button" id="clearSavedButton" type="button">Clear local</button>
       </aside>
     </main>
 
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=9"></script>
   </body>
 </html>
