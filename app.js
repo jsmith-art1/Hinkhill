@@ -131,6 +131,12 @@ function mailtoHref(order) {
   return `mailto:${submissionEmail}?${params.toString()}`;
 }
 
+function openNotificationDraft(order) {
+  window.setTimeout(() => {
+    window.location.href = mailtoHref(order);
+  }, 150);
+}
+
 function renderRadioButtons(container, items, selected, dataName) {
   container.innerHTML = items
     .map((item) => `
@@ -285,7 +291,8 @@ form.addEventListener("submit", (event) => {
   const order = createOrder();
   renderOrder(order);
   saveOrder(order);
-  formStatus.textContent = `${order.id} saved and ready for Justin.`;
+  formStatus.textContent = `${order.id} saved. Opening an email draft for Justin.`;
+  openNotificationDraft(order);
 });
 
 newButton.addEventListener("click", resetForm);

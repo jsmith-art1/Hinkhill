@@ -8,6 +8,7 @@ The family ops hub includes:
 - Household category, timing, and priority
 - A short title, details, location, money note, and "done means" field
 - Request preview with copy, email draft, and print actions
+- A pre-addressed email draft opens when a request is submitted
 - Recent requests saved locally in the browser
 
 Open `index.html` in a browser to use it.
